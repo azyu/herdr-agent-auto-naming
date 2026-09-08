@@ -1,0 +1,19 @@
+id = "azyu.agent-auto-naming"
+name = "Agent Auto Naming"
+version = "0.1.0"
+min_herdr_version = "0.9.0"
+description = "Give every detected agent a readable two-word name, persisted as the pane label"
+platforms = ["linux", "macos"]
+
+[[events]]
+on = "pane.agent_detected"
+command = ["python3", "auto_name.py"]
+
+[[startup]]
+command = ["python3", "auto_name.py"]
+
+[[actions]]
+id = "name-all"
+title = "Name unnamed agents"
+contexts = ["workspace"]
+command = ["python3", "auto_name.py"]
