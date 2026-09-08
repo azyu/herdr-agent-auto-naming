@@ -48,15 +48,11 @@ every name it has assigned.
 
 ## What your agents will be called
 
-```
-w15:p1  claude   →  green-cow
-w15:p8  claude   →  crispy-toast
-w17:p1  agy      →  orange-tapir
-w19:p1  codex    →  white-fox
-```
+<img src="docs/screenshots/pane-names.png" alt="Two Herdr panes titled crimson-crane and frosty-miso" width="820">
 
 Names are `<left>-<right>` drawn from the union of two word lists: colors × animals
-and adjectives × foods. 392 names, and a name in use is never offered twice.
+and adjectives × foods. 392 names, and a name in use is never offered twice. The
+name titles the pane, so you can read it off the screen before you type it.
 
 | Trigger | What it names |
 | --- | --- |
