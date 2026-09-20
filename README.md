@@ -82,8 +82,10 @@ Claude Code is the slow one because Herdr reads its status off the screen. A tur
 only prints text never registered as `working` in my runs — not a 13-second one, not
 an 800-line one — so the status event the plugin waits for does not arrive until the
 agent reads a file or runs a command. Until then the pane still says `claude`. This is
-not specific to `/clear`; an untouched pane behaves the same way, and a custom
-statusline at the bottom of the pane may be part of why. `name-all` fixes it now:
+not specific to `/clear` — an untouched pane behaves the same way — and it is not the
+pane's statusline crowding the detection region either: with mine disabled, three
+text-only turns still never registered (0 of 120 polls), while a tool-using turn in
+the same pane did (6 of 30). `name-all` fixes it now:
 
 ```sh
 herdr plugin action invoke azyu.agent-auto-naming.name-all

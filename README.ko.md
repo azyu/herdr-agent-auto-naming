@@ -84,7 +84,9 @@ Claude Code만 느린 이유는 Herdr가 이 런타임의 상태를 화면에서
 짜리도 마찬가지였습니다. 그래서 플러그인이 기다리는 상태 이벤트는 에이전트가 파일을
 읽거나 명령을 실행할 때까지 오지 않고, 그동안 패널은 `claude`로 남습니다. 이것은
 `/clear`와 무관하며 한 번도 건드리지 않은 패널도 똑같습니다. 패널 하단의 커스텀
-statusline이 영향을 줬을 가능성도 있습니다. 당장 되돌리려면 `name-all`을 쓰세요.
+statusline이 감지 영역을 밀어낸 탓도 아닙니다. statusline을 끄고 확인했더니 텍스트
+전용 턴 3회는 여전히 한 번도 잡히지 않았고(120회 폴링 중 0회), 같은 패널의 도구 사용
+턴은 잡혔습니다(30회 중 6회). 당장 되돌리려면 `name-all`을 쓰세요.
 
 ```sh
 herdr plugin action invoke azyu.agent-auto-naming.name-all
