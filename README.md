@@ -14,7 +14,9 @@ memory; `herdr agent prompt w15:p8 "..."` is one you have to look up every time.
 
 It hangs off Herdr's `pane.agent_detected` event rather than a per-runtime session
 hook, so it names claude, codex, omp, agy, droid — anything Herdr classifies as an
-agent — without installing anything into those agents.
+agent — without installing anything into those agents. The one exception is a Claude
+Code pane that has been `/clear`ed, which Herdr reports no event for at all; see
+[`/clear` and `/new` take the name away](#clear-and-new-take-the-name-away).
 
 The name is written to the **pane label**, not just the agent. An agent name dies
 with the agent; the label outlives it. So when an agent reappears in a pane you
@@ -57,8 +59,48 @@ name titles the pane, so you can read it off the screen before you type it.
 | Trigger | What it names |
 | --- | --- |
 | `pane.agent_detected` | The pane in the event — a new agent, or one that reappeared. |
+| `pane.agent_status_changed` | The pane in the event, once an agent that lost its name works again. |
 | Startup hook | Every agent with no name, when the Herdr server restores a session. |
 | `name-all` action | Every agent with no name, on demand. |
+
+## `/clear` and `/new` take the name away
+
+Those commands do not restart the agent; they replace its session inside the same
+process. Herdr treats a replaced session as a new agent and clears the name, so the
+sidebar falls back to the bare runtime — `claude` — while the pane label survives.
+Herdr reports no detection for it, which is what `pane.agent_status_changed` is
+subscribed for: it is the first event that follows the replacement, and the label is
+still there to rebind from. Measured on Herdr 0.9.1:
+
+| Runtime | Name cleared | Recovered by |
+| --- | --- | --- |
+| codex `/new` | On the first prompt after it, when the new session is reported. | The plugin, on that same turn. |
+| omp `/new` | Immediately. | The plugin, within a second. |
+| Claude Code `/clear`, `/new` | Immediately. | Nothing — Herdr stops reporting status for that pane, so no event ever arrives. |
+
+A cleared Claude Code pane therefore cannot be fixed from inside the plugin at all;
+the trigger has to come from the runtime. The plugin does not install one, so a
+cleared pane stays on `claude` until the next sweep. If you want it back
+automatically, add this to `hooks.SessionStart` in `~/.claude/settings.json` — it
+invokes this plugin's own action rather than assigning a name of its own, so nothing
+competes over minting:
+
+```json
+{
+  "hooks": [
+    {
+      "type": "command",
+      "command": "if [ \"${HERDR_ENV:-}\" = \"1\" ] && command -v herdr >/dev/null 2>&1; then (sleep 1; herdr plugin action invoke azyu.agent-auto-naming.name-all >/dev/null 2>&1 &) ; fi; exit 0",
+      "timeout": 5
+    }
+  ]
+}
+```
+
+The `sleep 1` is there because Claude Code runs its `SessionStart` hooks in parallel:
+without it the sweep can finish before Herdr has processed the session report it is
+reacting to, and re-name a pane that is about to be cleared again. One second clears
+Herdr's own hook, which gives up after 500ms.
 
 ## What it will not touch
 
@@ -98,6 +140,8 @@ be assigned.
 | One pane never gets named | Its label is probably not a legal agent name. `herdr pane get <pane>` — a label like `Reviewer` is honoured, not overwritten. Clear it with `herdr pane rename <pane> --clear` to hand the pane back. |
 | Names look shuffled after a restart | The pane label decides. If a pane's label and agent name disagree, the label wins on the next detection. |
 | Two names race on one pane | Something else is also minting. A per-runtime `SessionStart` hook that assigns Herdr names will fight this plugin; leave one of the two doing the naming. |
+| A Claude Code pane shows `claude` again | `/clear` or `/new` was run there. Install the `SessionStart` hook above; `herdr plugin action invoke azyu.agent-auto-naming.name-all` fixes it now. |
+| A cleared Claude Code pane is stuck on `idle` | Herdr 0.9.1 stops tracking that pane's status after the session is replaced — the agent works, the status does not move. Restarting the agent is the only fix; the plugin cannot see it either. |
 | Nothing at all happens | `herdr plugin list` — a linked plugin can be disabled. Then `herdr plugin log list --plugin azyu.agent-auto-naming` for the last runs and their stderr. |
 
 ## Safety

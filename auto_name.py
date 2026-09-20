@@ -10,8 +10,11 @@ Three rules keep this from damaging state it does not own:
   - A minted name is persisted as the label only after `herdr agent rename` accepted it,
     so a lost race never leaves a pane holding a name another agent owns.
 
-Runs three ways, all the same code: on `pane.agent_detected` (one pane, from the event),
-and from the startup hook or the `name-all` action (every agent that has no name).
+Runs three ways, all the same code: on a pane event (one pane, from the event), and
+from the startup hook or the `name-all` action (every agent that has no name). Both
+`pane.agent_detected` and `pane.agent_status_changed` are subscribed: a session replaced
+in place by `/clear` or `/new` drops the name without a detection event, so the status
+change that follows it is the only event left to rebind from.
 """
 import json, os, random, re, subprocess, time
 
