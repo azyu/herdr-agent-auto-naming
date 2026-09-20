@@ -13,8 +13,9 @@ command = ["python3", "auto_name.py"]
 # for it but reports no detection, so the pane keeps its label while the agent shows as
 # the bare runtime again. No event marks the replacement; a status change is the first
 # one that follows it, and name_pane rebinds the label from there. Measured on herdr
-# 0.9.1: codex and omp keep reporting status across the replacement, Claude Code does
-# not — its panes need the runtime-side hook the README describes.
+# 0.9.1: codex and omp recover on the next prompt, Claude Code on its next turn that
+# uses a tool — herdr reads its status off the screen and a text-only turn never
+# registers as working, so the event can be a while coming.
 [[events]]
 on = "pane.agent_status_changed"
 command = ["python3", "auto_name.py"]

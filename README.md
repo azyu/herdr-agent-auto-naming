@@ -14,8 +14,8 @@ memory; `herdr agent prompt w15:p8 "..."` is one you have to look up every time.
 
 It hangs off Herdr's `pane.agent_detected` event rather than a per-runtime session
 hook, so it names claude, codex, omp, agy, droid — anything Herdr classifies as an
-agent — without installing anything into those agents. The one exception is a Claude
-Code pane that has been `/clear`ed, which Herdr reports no event for at all; see
+agent — without installing anything into those agents. A session replaced in place by
+`/clear` or `/new` is the case to know about; see
 [`/clear` and `/new` take the name away](#clear-and-new-take-the-name-away).
 
 The name is written to the **pane label**, not just the agent. An agent name dies
@@ -76,14 +76,22 @@ still there to rebind from. Measured on Herdr 0.9.1:
 | --- | --- | --- |
 | codex `/new` | On the first prompt after it, when the new session is reported. | The plugin, on that same turn. |
 | omp `/new` | Immediately. | The plugin, within a second. |
-| Claude Code `/clear`, `/new` | Immediately. | Nothing — Herdr stops reporting status for that pane, so no event ever arrives. |
+| Claude Code `/clear`, `/new` | Immediately. | The plugin, on the pane's next status change — in practice its next turn that uses a tool. |
 
-A cleared Claude Code pane therefore cannot be fixed from inside the plugin at all;
-the trigger has to come from the runtime. The plugin does not install one, so a
-cleared pane stays on `claude` until the next sweep. If you want it back
-automatically, add this to `hooks.SessionStart` in `~/.claude/settings.json` — it
-invokes this plugin's own action rather than assigning a name of its own, so nothing
-competes over minting:
+Claude Code is the slow one because Herdr reads its status off the screen. A turn that
+only prints text never registered as `working` in my runs — not a 13-second one, not
+an 800-line one — so the status event the plugin waits for does not arrive until the
+agent reads a file or runs a command. Until then the pane still says `claude`. This is
+not specific to `/clear`; an untouched pane behaves the same way, and a custom
+statusline at the bottom of the pane may be part of why. `name-all` fixes it now:
+
+```sh
+herdr plugin action invoke azyu.agent-auto-naming.name-all
+```
+
+To get the name back the moment you clear, add this to `hooks.SessionStart` in
+`~/.claude/settings.json` — it invokes this plugin's own action rather than assigning a
+name of its own, so nothing competes over minting:
 
 ```json
 {
@@ -140,8 +148,8 @@ be assigned.
 | One pane never gets named | Its label is probably not a legal agent name. `herdr pane get <pane>` — a label like `Reviewer` is honoured, not overwritten. Clear it with `herdr pane rename <pane> --clear` to hand the pane back. |
 | Names look shuffled after a restart | The pane label decides. If a pane's label and agent name disagree, the label wins on the next detection. |
 | Two names race on one pane | Something else is also minting. A per-runtime `SessionStart` hook that assigns Herdr names will fight this plugin; leave one of the two doing the naming. |
-| A Claude Code pane shows `claude` again | `/clear` or `/new` was run there. Install the `SessionStart` hook above; `herdr plugin action invoke azyu.agent-auto-naming.name-all` fixes it now. |
-| A cleared Claude Code pane is stuck on `idle` | Herdr 0.9.1 stops tracking that pane's status after the session is replaced — the agent works, the status does not move. Restarting the agent is the only fix; the plugin cannot see it either. |
+| A Claude Code pane shows `claude` again | `/clear` or `/new` was run there. It comes back on the pane's next tool-using turn, or right away with `herdr plugin action invoke azyu.agent-auto-naming.name-all`. |
+| A Claude Code pane sits on `idle` while it answers | Herdr reads Claude Code's status from the screen, and a text-only turn does not look like work. It catches up on the next turn that uses a tool. Not a naming problem, but it is why a cleared pane can stay on `claude` for a while. |
 | Nothing at all happens | `herdr plugin list` — a linked plugin can be disabled. Then `herdr plugin log list --plugin azyu.agent-auto-naming` for the last runs and their stderr. |
 
 ## Safety
