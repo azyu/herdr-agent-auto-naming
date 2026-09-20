@@ -1,6 +1,6 @@
 id = "azyu.agent-auto-naming"
 name = "Agent Auto Naming"
-version = "0.1.0"
+version = "0.2.0"
 min_herdr_version = "0.9.0"
 description = "Give every detected agent a readable two-word name, persisted as the pane label"
 platforms = ["linux", "macos"]
