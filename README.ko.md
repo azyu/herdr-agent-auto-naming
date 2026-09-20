@@ -15,8 +15,8 @@ Herdr가 감지한 모든 에이전트에 기억하기 쉬운 두 단어 이름�
 
 런타임별 세션 훅 대신 Herdr의 `pane.agent_detected` 이벤트를 사용합니다. 따라서 claude,
 codex, omp, agy, droid를 비롯해 Herdr가 에이전트로 분류하는 모든 대상에 이름을 붙입니다.
-각 에이전트에 따로 설치할 것은 없습니다. 예외는 `/clear`한 Claude Code 패널 하나인데
-Herdr가 아무 이벤트도 보내지 않습니다.
+각 에이전트에 따로 설치할 것은 없습니다. 알아둘 경우는 `/clear`·`/new`처럼 세션을
+제자리에서 교체하는 경우 하나입니다.
 [`/clear`와 `/new`는 이름을 지웁니다](#clear와-new는-이름을-지웁니다)를 보세요.
 
 이름은 에이전트뿐 아니라 **pane label**에도 기록합니다. 에이전트 이름은 에이전트가
@@ -77,11 +77,22 @@ herdr plugin action invoke azyu.agent-auto-naming.name-all
 | --- | --- | --- |
 | codex `/new` | 직후 첫 프롬프트에서 새 세션이 보고될 때 | 플러그인이 같은 턴에 복구 |
 | omp `/new` | 즉시 | 플러그인이 1초 이내에 복구 |
-| Claude Code `/clear`, `/new` | 즉시 | 복구 안 됨. Herdr가 해당 패널의 상태 보고를 중단해 이벤트가 오지 않습니다 |
+| Claude Code `/clear`, `/new` | 즉시 | 플러그인이 다음 상태 변화에 복구 — 실제로는 도구를 쓰는 다음 턴입니다 |
 
-따라서 `/clear`한 Claude Code 패널은 플러그인 안에서는 고칠 수 없고 트리거가 런타임
-쪽에서 와야 합니다. 플러그인은 이 훅을 설치하지 않으므로 해당 패널은 다음 스윕 전까지
-`claude`로 남습니다. 자동으로 되돌리려면 `~/.claude/settings.json`의
+Claude Code만 느린 이유는 Herdr가 이 런타임의 상태를 화면에서 읽기 때문입니다. 텍스트만
+출력하는 턴은 제 측정에서 한 번도 `working`으로 잡히지 않았습니다. 13초짜리도, 800줄
+짜리도 마찬가지였습니다. 그래서 플러그인이 기다리는 상태 이벤트는 에이전트가 파일을
+읽거나 명령을 실행할 때까지 오지 않고, 그동안 패널은 `claude`로 남습니다. 이것은
+`/clear`와 무관하며 한 번도 건드리지 않은 패널도 똑같습니다. 패널 하단의 커스텀
+statusline이 감지 영역을 밀어낸 탓도 아닙니다. statusline을 끄고 확인했더니 텍스트
+전용 턴 3회는 여전히 한 번도 잡히지 않았고(120회 폴링 중 0회), 같은 패널의 도구 사용
+턴은 잡혔습니다(30회 중 6회). 당장 되돌리려면 `name-all`을 쓰세요.
+
+```sh
+herdr plugin action invoke azyu.agent-auto-naming.name-all
+```
+
+`/clear`하는 순간 바로 이름을 되찾고 싶다면 `~/.claude/settings.json`의
 `hooks.SessionStart`에 아래를 추가하세요. 이름을 직접 배정하지 않고 이 플러그인의
 액션만 호출하므로 이름 발급이 경합하지 않습니다.
 
@@ -138,8 +149,8 @@ THEMES = [
 | 특정 패널에 계속 이름이 붙지 않음 | label이 에이전트 이름 규칙에 맞지 않을 수 있습니다. `herdr pane get <pane>`으로 확인하세요. `Reviewer` 같은 label은 덮어쓰지 않습니다. 자동으로 이름을 붙이려면 `herdr pane rename <pane> --clear`로 label을 지우세요. |
 | 재시작 후 이름이 바뀐 것처럼 보임 | pane label이 기준입니다. label과 에이전트 이름이 다르면 다음에 감지될 때 label을 따릅니다. |
 | 한 패널에서 두 이름이 경합함 | 다른 곳에서도 이름을 붙이고 있다는 뜻입니다. Herdr 이름을 배정하는 런타임별 `SessionStart` 훅은 이 플러그인과 충돌합니다. 둘 중 하나만 이름을 붙이도록 설정하세요. |
-| Claude Code 패널이 다시 `claude`로 보임 | 그 패널에서 `/clear` 또는 `/new`를 실행한 경우입니다. 위의 `SessionStart` 훅을 설치하세요. 지금 당장은 `herdr plugin action invoke azyu.agent-auto-naming.name-all`로 복구합니다. |
-| `/clear`한 Claude Code 패널이 `idle`에서 멈춤 | Herdr 0.9.1이 세션 교체 후 해당 패널의 상태 추적을 중단합니다. 에이전트는 실제로 작업하지만 상태가 움직이지 않습니다. 에이전트를 재시작하는 것 외에는 방법이 없으며 플러그인도 이 상태를 볼 수 없습니다. |
+| Claude Code 패널이 다시 `claude`로 보임 | 그 패널에서 `/clear` 또는 `/new`를 실행한 경우입니다. 도구를 쓰는 다음 턴에 돌아오고, 즉시 복구하려면 `herdr plugin action invoke azyu.agent-auto-naming.name-all`을 실행하세요. |
+| Claude Code 패널이 답변 중인데 `idle`로 보임 | Herdr는 Claude Code의 상태를 화면에서 읽는데, 텍스트만 출력하는 턴은 작업으로 보이지 않습니다. 도구를 쓰는 다음 턴에서 따라잡습니다. 이름 문제는 아니지만, `/clear`한 패널이 한동안 `claude`로 남는 이유입니다. |
 | 아무 일도 일어나지 않음 | `herdr plugin list`로 플러그인이 비활성화됐는지 확인하세요. 그다음 `herdr plugin log list --plugin azyu.agent-auto-naming`에서 최근 실행 기록과 stderr를 확인하세요. |
 
 ## 안전성
