@@ -5,7 +5,7 @@ Herdr가 감지한 모든 에이전트에 기억하기 쉬운 두 단어 이름�
 
 [![Herdr](https://img.shields.io/badge/herdr-0.9.0%2B-0797ff?logo=terminal&logoColor=white)](https://herdr.dev)
 [![Python](https://img.shields.io/badge/python-3.8%2B-3776ab?logo=python&logoColor=white)](https://www.python.org/)
-[![Platforms](https://img.shields.io/badge/platforms-macOS%20%7C%20Linux-lightgrey)](#설치)
+[![Platforms](https://img.shields.io/badge/platforms-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey)](#설치)
 
 영문 문서: [README.md](README.md)
 
@@ -25,8 +25,8 @@ codex, omp, agy, droid를 비롯해 Herdr가 에이전트로 분류하는 모든
 
 ## 설치
 
-Herdr 0.9.0 이상과 `python3`가 필요합니다. Python 표준 라이브러리만 사용하며
-macOS와 Linux를 지원합니다.
+Herdr 0.9.0 이상과 Python 3.8 이상이 필요합니다. Python 표준 라이브러리만 사용하며,
+macOS/Linux에서는 `python3`, Windows에서는 Python launcher인 `py -3`를 사용합니다.
 
 ```sh
 herdr plugin install azyu/herdr-agent-auto-naming
@@ -43,6 +43,12 @@ herdr plugin link /path/to/herdr-agent-auto-naming
 
 ```sh
 herdr plugin action invoke azyu.agent-auto-naming.name-all
+```
+
+Windows에서는 Windows 전용 스윕 액션을 사용하세요.
+
+```powershell
+herdr plugin action invoke azyu.agent-auto-naming.name-all-windows
 ```
 
 `herdr plugin list`로 설치 상태를 확인할 수 있습니다. 플러그인을 끄려면
@@ -62,7 +68,7 @@ herdr plugin action invoke azyu.agent-auto-naming.name-all
 | `pane.agent_detected` | 이벤트에 포함된 패널. 새로 실행됐거나 다시 나타난 에이전트입니다. |
 | `pane.agent_status_changed` | 이벤트에 포함된 패널. 이름을 잃은 에이전트가 다시 작업을 시작한 시점입니다. |
 | startup 훅 | Herdr 서버가 세션을 복원할 때 이름이 없는 모든 에이전트 |
-| `name-all` 액션 | 사용자가 직접 실행할 때 이름이 없는 모든 에이전트 |
+| `name-all` / `name-all-windows` 액션 | 사용자가 직접 실행할 때 이름이 없는 모든 에이전트 |
 
 ## `/clear`와 `/new`는 이름을 지웁니다
 
@@ -86,15 +92,20 @@ Claude Code만 느린 이유는 Herdr가 이 런타임의 상태를 화면에서
 `/clear`와 무관하며 한 번도 건드리지 않은 패널도 똑같습니다. 패널 하단의 커스텀
 statusline이 감지 영역을 밀어낸 탓도 아닙니다. statusline을 끄고 확인했더니 텍스트
 전용 턴 3회는 여전히 한 번도 잡히지 않았고(120회 폴링 중 0회), 같은 패널의 도구 사용
-턴은 잡혔습니다(30회 중 6회). 당장 되돌리려면 `name-all`을 쓰세요.
+턴은 잡혔습니다(30회 중 6회). 당장 되돌리려면 `name-all`을 쓰고, Windows에서는
+`name-all-windows`를 사용하세요.
 
 ```sh
+# macOS/Linux
 herdr plugin action invoke azyu.agent-auto-naming.name-all
+
+# Windows
+herdr plugin action invoke azyu.agent-auto-naming.name-all-windows
 ```
 
 `/clear`하는 순간 바로 이름을 되찾고 싶다면 `~/.claude/settings.json`의
-`hooks.SessionStart`에 아래를 추가하세요. 이름을 직접 배정하지 않고 이 플러그인의
-액션만 호출하므로 이름 발급이 경합하지 않습니다.
+`hooks.SessionStart`에 아래 명령 중 하나를 추가하세요. 이름을 직접 배정하지 않고
+이 플러그인의 액션만 호출하므로 이름 발급이 경합하지 않습니다.
 
 ```json
 {
@@ -102,6 +113,20 @@ herdr plugin action invoke azyu.agent-auto-naming.name-all
     {
       "type": "command",
       "command": "if [ \"${HERDR_ENV:-}\" = \"1\" ] && command -v herdr >/dev/null 2>&1; then (sleep 1; herdr plugin action invoke azyu.agent-auto-naming.name-all >/dev/null 2>&1 &) ; fi; exit 0",
+      "timeout": 5
+    }
+  ]
+}
+```
+
+위 Bash 형식은 macOS/Linux용입니다. Windows에서는 PowerShell 형식을 사용하세요.
+
+```json
+{
+  "hooks": [
+    {
+      "type": "command",
+      "command": "powershell -NoProfile -Command \"if ($env:HERDR_ENV -eq '1' -and (Get-Command herdr -ErrorAction SilentlyContinue)) { Start-Sleep -Seconds 1; Start-Process -FilePath herdr -ArgumentList 'plugin','action','invoke','azyu.agent-auto-naming.name-all-windows' -WindowStyle Hidden }\"",
       "timeout": 5
     }
   ]
@@ -145,11 +170,11 @@ THEMES = [
 
 | 증상 | 확인할 것 |
 | --- | --- |
-| 에이전트에 이름이 붙지 않음 | `herdr agent get <pane>`을 실행하세요. `agent_not_found`라면 Herdr가 아직 에이전트로 분류하지 않아 이벤트가 발생하지 않은 상태입니다. Herdr가 에이전트로 감지한 뒤 `name-all`을 한 번 실행하세요. |
+| 에이전트에 이름이 붙지 않음 | `herdr agent get <pane>`을 실행하세요. `agent_not_found`라면 Herdr가 아직 에이전트로 분류하지 않아 이벤트가 발생하지 않은 상태입니다. Herdr가 에이전트로 감지한 뒤 `name-all` 액션을 실행하세요(`name-all-windows`는 Windows). |
 | 특정 패널에 계속 이름이 붙지 않음 | label이 에이전트 이름 규칙에 맞지 않을 수 있습니다. `herdr pane get <pane>`으로 확인하세요. `Reviewer` 같은 label은 덮어쓰지 않습니다. 자동으로 이름을 붙이려면 `herdr pane rename <pane> --clear`로 label을 지우세요. |
 | 재시작 후 이름이 바뀐 것처럼 보임 | pane label이 기준입니다. label과 에이전트 이름이 다르면 다음에 감지될 때 label을 따릅니다. |
 | 한 패널에서 두 이름이 경합함 | 다른 곳에서도 이름을 붙이고 있다는 뜻입니다. Herdr 이름을 배정하는 런타임별 `SessionStart` 훅은 이 플러그인과 충돌합니다. 둘 중 하나만 이름을 붙이도록 설정하세요. |
-| Claude Code 패널이 다시 `claude`로 보임 | 그 패널에서 `/clear` 또는 `/new`를 실행한 경우입니다. 도구를 쓰는 다음 턴에 돌아오고, 즉시 복구하려면 `herdr plugin action invoke azyu.agent-auto-naming.name-all`을 실행하세요. |
+| Claude Code 패널이 다시 `claude`로 보임 | 그 패널에서 `/clear` 또는 `/new`를 실행한 경우입니다. 도구를 쓰는 다음 턴에 돌아오고, 즉시 복구하려면 `name-all`을 실행하세요(`name-all-windows`는 Windows). |
 | Claude Code 패널이 답변 중인데 `idle`로 보임 | Herdr는 Claude Code의 상태를 화면에서 읽는데, 텍스트만 출력하는 턴은 작업으로 보이지 않습니다. 도구를 쓰는 다음 턴에서 따라잡습니다. 이름 문제는 아니지만, `/clear`한 패널이 한동안 `claude`로 남는 이유입니다. |
 | 아무 일도 일어나지 않음 | `herdr plugin list`로 플러그인이 비활성화됐는지 확인하세요. 그다음 `herdr plugin log list --plugin azyu.agent-auto-naming`에서 최근 실행 기록과 stderr를 확인하세요. |
 

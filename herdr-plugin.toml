@@ -1,13 +1,19 @@
 id = "azyu.agent-auto-naming"
 name = "Agent Auto Naming"
-version = "0.2.0"
+version = "0.3.0"
 min_herdr_version = "0.9.0"
 description = "Give every detected agent a readable two-word name, persisted as the pane label"
-platforms = ["linux", "macos"]
+platforms = ["linux", "macos", "windows"]
 
 [[events]]
 on = "pane.agent_detected"
+platforms = ["linux", "macos"]
 command = ["python3", "auto_name.py"]
+
+[[events]]
+on = "pane.agent_detected"
+platforms = ["windows"]
+command = ["py", "-3", "auto_name.py"]
 
 # `/clear` and `/new` replace the agent session in place. Herdr clears the agent name
 # for it but reports no detection, so the pane keeps its label while the agent shows as
@@ -18,13 +24,32 @@ command = ["python3", "auto_name.py"]
 # registers as working, so the event can be a while coming.
 [[events]]
 on = "pane.agent_status_changed"
+platforms = ["linux", "macos"]
+command = ["python3", "auto_name.py"]
+
+[[events]]
+on = "pane.agent_status_changed"
+platforms = ["windows"]
+command = ["py", "-3", "auto_name.py"]
+
+[[startup]]
+platforms = ["linux", "macos"]
 command = ["python3", "auto_name.py"]
 
 [[startup]]
-command = ["python3", "auto_name.py"]
+platforms = ["windows"]
+command = ["py", "-3", "auto_name.py"]
 
 [[actions]]
 id = "name-all"
 title = "Name unnamed agents"
 contexts = ["workspace"]
+platforms = ["linux", "macos"]
 command = ["python3", "auto_name.py"]
+
+[[actions]]
+id = "name-all-windows"
+title = "Name unnamed agents"
+contexts = ["workspace"]
+platforms = ["windows"]
+command = ["py", "-3", "auto_name.py"]
