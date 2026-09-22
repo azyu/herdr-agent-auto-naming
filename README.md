@@ -4,7 +4,7 @@ Readable two-word names for every agent Herdr detects, persisted as the pane lab
 
 [![Herdr](https://img.shields.io/badge/herdr-0.9.0%2B-0797ff?logo=terminal&logoColor=white)](https://herdr.dev)
 [![Python](https://img.shields.io/badge/python-3.8%2B-3776ab?logo=python&logoColor=white)](https://www.python.org/)
-[![Platforms](https://img.shields.io/badge/platforms-macOS%20%7C%20Linux-lightgrey)](#install)
+[![Platforms](https://img.shields.io/badge/platforms-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey)](#install)
 
 한국어 문서: [README.ko.md](README.ko.md)
 
@@ -24,7 +24,8 @@ already know, it gets its old name back instead of a new one.
 
 ## Install
 
-Requires Herdr 0.9.0+ and `python3` (standard library only) on macOS or Linux.
+Requires Herdr 0.9.0+ and Python 3.8+ (standard library only). Use `python3` on
+macOS/Linux and the Windows launcher `py -3` on Windows.
 
 ```sh
 herdr plugin install azyu/herdr-agent-auto-naming
@@ -44,6 +45,12 @@ state until you sweep them:
 herdr plugin action invoke azyu.agent-auto-naming.name-all
 ```
 
+On Windows, use the Windows-specific sweep action:
+
+```powershell
+herdr plugin action invoke azyu.agent-auto-naming.name-all-windows
+```
+
 `herdr plugin list` shows the plugin, `herdr plugin disable azyu.agent-auto-naming`
 turns it off, and `herdr plugin log list --plugin azyu.agent-auto-naming` shows
 every name it has assigned.
@@ -61,7 +68,7 @@ name titles the pane, so you can read it off the screen before you type it.
 | `pane.agent_detected` | The pane in the event — a new agent, or one that reappeared. |
 | `pane.agent_status_changed` | The pane in the event, once an agent that lost its name works again. |
 | Startup hook | Every agent with no name, when the Herdr server restores a session. |
-| `name-all` action | Every agent with no name, on demand. |
+| `name-all` / `name-all-windows` action | Every agent with no name, on demand. |
 
 ## `/clear` and `/new` take the name away
 
@@ -85,15 +92,19 @@ agent reads a file or runs a command. Until then the pane still says `claude`. T
 not specific to `/clear` — an untouched pane behaves the same way — and it is not the
 pane's statusline crowding the detection region either: with mine disabled, three
 text-only turns still never registered (0 of 120 polls), while a tool-using turn in
-the same pane did (6 of 30). `name-all` fixes it now:
+the same pane did (6 of 30). `name-all` fixes it now; use `name-all-windows` on Windows:
 
 ```sh
+# macOS/Linux
 herdr plugin action invoke azyu.agent-auto-naming.name-all
+
+# Windows
+herdr plugin action invoke azyu.agent-auto-naming.name-all-windows
 ```
 
-To get the name back the moment you clear, add this to `hooks.SessionStart` in
-`~/.claude/settings.json` — it invokes this plugin's own action rather than assigning a
-name of its own, so nothing competes over minting:
+To get the name back the moment you clear, add one of these to `hooks.SessionStart`
+in `~/.claude/settings.json` — each invokes this plugin's own action rather than
+assigning a name of its own, so nothing competes over minting.
 
 ```json
 {
@@ -101,6 +112,20 @@ name of its own, so nothing competes over minting:
     {
       "type": "command",
       "command": "if [ \"${HERDR_ENV:-}\" = \"1\" ] && command -v herdr >/dev/null 2>&1; then (sleep 1; herdr plugin action invoke azyu.agent-auto-naming.name-all >/dev/null 2>&1 &) ; fi; exit 0",
+      "timeout": 5
+    }
+  ]
+}
+```
+
+The Bash form is for macOS/Linux. Windows needs the PowerShell form below:
+
+```json
+{
+  "hooks": [
+    {
+      "type": "command",
+      "command": "powershell -NoProfile -Command \"if ($env:HERDR_ENV -eq '1' -and (Get-Command herdr -ErrorAction SilentlyContinue)) { Start-Sleep -Seconds 1; Start-Process -FilePath herdr -ArgumentList 'plugin','action','invoke','azyu.agent-auto-naming.name-all-windows' -WindowStyle Hidden }\"",
       "timeout": 5
     }
   ]
@@ -146,11 +171,11 @@ be assigned.
 
 | Symptom | Check |
 | --- | --- |
-| An agent has no name | `herdr agent get <pane>`. `agent_not_found` means Herdr has not classified it yet, and there was no event to act on. Run the `name-all` action once it appears. |
+| An agent has no name | `herdr agent get <pane>`. `agent_not_found` means Herdr has not classified it yet, and there was no event to act on. Run the `name-all` action once it appears (`name-all-windows` on Windows). |
 | One pane never gets named | Its label is probably not a legal agent name. `herdr pane get <pane>` — a label like `Reviewer` is honoured, not overwritten. Clear it with `herdr pane rename <pane> --clear` to hand the pane back. |
 | Names look shuffled after a restart | The pane label decides. If a pane's label and agent name disagree, the label wins on the next detection. |
 | Two names race on one pane | Something else is also minting. A per-runtime `SessionStart` hook that assigns Herdr names will fight this plugin; leave one of the two doing the naming. |
-| A Claude Code pane shows `claude` again | `/clear` or `/new` was run there. It comes back on the pane's next tool-using turn, or right away with `herdr plugin action invoke azyu.agent-auto-naming.name-all`. |
+| A Claude Code pane shows `claude` again | `/clear` or `/new` was run there. It comes back on the pane's next tool-using turn, or right away with `name-all` (`name-all-windows` on Windows). |
 | A Claude Code pane sits on `idle` while it answers | Herdr reads Claude Code's status from the screen, and a text-only turn does not look like work. It catches up on the next turn that uses a tool. Not a naming problem, but it is why a cleared pane can stay on `claude` for a while. |
 | Nothing at all happens | `herdr plugin list` — a linked plugin can be disabled. Then `herdr plugin log list --plugin azyu.agent-auto-naming` for the last runs and their stderr. |
 

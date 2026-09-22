@@ -37,7 +37,13 @@ THEMES = [
 def herdr(*args):
     """Returns (result, error_code). error_code is '' on success."""
     try:
-        out = subprocess.run([HERDR, *args], capture_output=True, text=True, timeout=3)
+        out = subprocess.run(
+            [HERDR, *args],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            timeout=3,
+        )
         payload = json.loads(out.stdout or out.stderr or "{}")
     except Exception:
         return {}, "unavailable"
