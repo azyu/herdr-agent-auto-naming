@@ -60,7 +60,8 @@ every name it has assigned.
 <img src="docs/screenshots/pane-names.png" alt="Two Herdr panes titled crimson-crane and frosty-miso" width="820">
 
 Names are `<left>-<right>` drawn from the union of two word lists: colors × animals
-and adjectives × foods. 392 names, and a name in use is never offered twice. The
+and adjectives × foods. 392 names out of the box — [themes](#configuration) swap in
+your own lists — and a name in use is never offered twice. The
 name titles the pane, so you can read it off the screen before you type it.
 
 | Trigger | What it names |
@@ -152,20 +153,31 @@ Herdr's own hook, which gives up after 500ms.
 
 ## Configuration
 
-There is none, by design. The one thing worth changing is the word lists, and they
-are at the top of [`auto_name.py`](auto_name.py):
+Out of the box, nothing to configure. The one thing worth changing is the word lists,
+and you change them in the plugin's config directory, not in this checkout:
 
-```python
-THEMES = [
-    ("white black orange ...".split(), "fox cow cat ...".split()),
-    ("crispy salty spicy ...".split(), "toast miso ramen ...".split()),
-]
+Example for macOS/Linux (Bash):
+
+```sh
+cd "$(herdr plugin config-dir azyu.agent-auto-naming)"
+mkdir -p themes
+echo '{"left": ["angry", "sleepy"], "right": ["misuzu", "nagisa"]}' > themes/mine.json
+echo '{"themes": ["mine"]}' > config.json
 ```
 
-`THEMES` is a list of `(left, right)` pairs and names come from the union of all of
-them, so adding a theme widens the pool instead of crowding an existing register.
-Keep every word lowercase ASCII; a name that fails Herdr's agent-name rule can never
-be assigned.
+A theme is a file `themes/<name>.json` holding one `left` and one `right` list; names
+are `<left>-<right>`. `config.json` picks the themes to draw from, and names come from
+the union of them. `default` is the built-in colors × animals and adjectives × foods,
+so `{"themes": ["default", "mine"]}` mixes the two. No `config.json` means `default`.
+Save configuration and theme files as UTF-8.
+
+- Keep every word lowercase ASCII. A name that fails Herdr's agent-name rule is
+  dropped from the pool, since it could never be assigned.
+- Theme names can contain letters, digits, `_` and `-`.
+- A broken `config.json` falls back to `default`, and a theme that cannot be read is
+  skipped; both say why in `herdr plugin log list --plugin azyu.agent-auto-naming`.
+- Changing themes affects future name assignments. Existing agent names and pane
+  labels are preserved.
 
 ## Troubleshooting
 
@@ -181,8 +193,8 @@ be assigned.
 
 ## Safety
 
-- Reads only Herdr's own `agent`/`pane` APIs through `HERDR_BIN_PATH`. It never reads
-  terminal output, transcripts, or agent state.
+- Reads only Herdr's own `agent`/`pane` APIs through `HERDR_BIN_PATH`, and its own
+  config directory. It never reads terminal output, transcripts, or agent state.
 - Sends no prompt and no keystroke to any agent.
 - Writes nothing outside Herdr — no config file, no state directory, no network.
 - Python standard library only, no dependencies to install or trust.

@@ -60,8 +60,9 @@ herdr plugin action invoke azyu.agent-auto-naming.name-all-windows
 <img src="docs/screenshots/pane-names.png" alt="crimson-crane과 frosty-miso로 이름 붙은 Herdr 패널 두 개" width="820">
 
 이름은 `<왼쪽>-<오른쪽>` 형식입니다. 색 × 동물, 형용사 × 음식으로 구성된 두 테마에서
-조합을 뽑습니다. 총 392개이며 이미 사용 중인 이름은 다시 배정하지 않습니다. 이름은
-패널 제목에도 표시되므로 명령을 입력하기 전에 화면에서 확인할 수 있습니다.
+조합을 뽑습니다. 기본 이름 후보는 392개입니다. [테마](#설정)로 단어 목록을 바꿀 수 있습니다.
+이미 사용 중인 이름은 다시 배정하지 않습니다. 이름은 패널 제목에도 표시됩니다.
+명령을 입력하기 전에 화면에서 이름을 확인할 수 있습니다.
 
 | 실행 시점 | 이름을 붙이는 대상 |
 | --- | --- |
@@ -152,19 +153,30 @@ herdr plugin action invoke azyu.agent-auto-naming.name-all-windows
 
 ## 설정
 
-별도 설정은 없습니다. 바꿀 수 있는 것은 단어 목록뿐이며,
-[`auto_name.py`](auto_name.py) 맨 위에 있습니다.
+기본 상태에서는 설정할 것이 없습니다. 바꿀 만한 것은 단어 목록이며, 이 저장소가 아니라
+플러그인 설정 디렉터리에서 바꿉니다.
 
-```python
-THEMES = [
-    ("white black orange ...".split(), "fox cow cat ...".split()),
-    ("crispy salty spicy ...".split(), "toast miso ramen ...".split()),
-]
+macOS/Linux의 Bash 예제입니다.
+
+```sh
+cd "$(herdr plugin config-dir azyu.agent-auto-naming)"
+mkdir -p themes
+echo '{"left": ["angry", "sleepy"], "right": ["misuzu", "nagisa"]}' > themes/mine.json
+echo '{"themes": ["mine"]}' > config.json
 ```
 
-`THEMES`는 `(왼쪽, 오른쪽)` 쌍의 목록입니다. 이름은 각 테마에서 만든 조합의 합집합에서
-뽑습니다. 테마를 추가하면 기존 조합은 그대로 두고 후보만 늘어납니다. 모든 단어는 소문자 ASCII로
-작성하세요. Herdr의 이름 규칙에 맞지 않는 이름은 배정하지 않습니다.
+테마는 `left`와 `right` 목록을 하나씩 담은 `themes/<이름>.json` 파일이고, 이름은
+`<left>-<right>` 형식이 됩니다. `config.json`에 사용할 테마를 적으면 그 테마들의 조합을
+합친 후보에서 이름을 뽑습니다. `default`는 내장된 색 × 동물, 형용사 × 음식 테마라서
+`{"themes": ["default", "mine"]}`처럼 쓰면 둘을 섞습니다. `config.json`이 없으면 `default`를 씁니다.
+설정 파일과 테마 파일은 UTF-8로 저장하세요.
+
+- 모든 단어는 소문자 ASCII로 작성하세요. Herdr의 이름 규칙에 맞지 않는 이름은 배정할 수
+  없으므로 후보에서 뺍니다.
+- 테마 이름에는 영문자, 숫자, `_`, `-`를 사용할 수 있습니다.
+- `config.json`이 깨져 있으면 `default`를 쓰고, 읽을 수 없는 테마는 건너뜁니다. 이유는
+  `herdr plugin log list --plugin azyu.agent-auto-naming`에서 볼 수 있습니다.
+- 테마 변경은 이후 이름 배정에 적용됩니다. 기존 에이전트 이름과 pane label은 유지됩니다.
 
 ## 문제 해결
 
@@ -180,7 +192,7 @@ THEMES = [
 
 ## 안전성
 
-- `HERDR_BIN_PATH`를 통해 Herdr의 `agent`/`pane` API만 사용합니다. 터미널 출력,
+- `HERDR_BIN_PATH`를 통한 Herdr의 `agent`/`pane` API와 플러그인 설정 디렉터리만 읽습니다. 터미널 출력,
   트랜스크립트, 에이전트 상태는 읽지 않습니다.
 - 어떤 에이전트에도 프롬프트나 키 입력을 보내지 않습니다.
 - Herdr 외부에는 아무것도 쓰지 않습니다. 설정 파일과 state 디렉터리를 만들지 않고

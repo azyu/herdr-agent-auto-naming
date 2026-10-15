@@ -16,22 +16,62 @@ from the startup hook or the `name-all` action (every agent that has no name). B
 in place by `/clear` or `/new` drops the name without a detection event, so the status
 change that follows it is the only event left to rebind from.
 """
-import json, os, random, re, subprocess, time
+import json, os, random, re, subprocess, sys, time
 
 HERDR = os.environ.get("HERDR_BIN_PATH", "herdr")
 
 # herdr's own agent-name rule; a label outside it can never become an agent name.
 AGENT_NAME_RE = re.compile(r"[a-z][a-z0-9_-]{0,31}")
-# ponytail: word lists inline. Move to $HERDR_PLUGIN_CONFIG_DIR/words.json when someone
-# actually wants a different register without editing a managed checkout.
-# Each theme is a (left, right) pair; names are drawn from the union, so adding a theme
-# widens the pool instead of crowding an existing one.
+CONFIG_DIR = os.environ.get("HERDR_PLUGIN_CONFIG_DIR", "")
+# The built-in "default" theme. Each theme is a (left, right) pair; names are drawn from
+# the union of the selected themes, so adding one widens the pool instead of crowding
+# an existing one. Other themes live in the user's config dir, never in this checkout.
 THEMES = [
     ("white black orange amber blue coral green slate violet crimson teal olive indigo rust".split(),
      "fox cow cat otter heron lynx crane badger marten shrike ibis viper quokka tapir".split()),
     ("crispy salty spicy smoky sweet tangy chewy hearty zesty toasted savory buttery frosty crunchy".split(),
      "toast miso ramen bagel waffle taco gnocchi kimchi pretzel scone tofu mango pesto brioche".split()),
 ]
+
+
+def load_themes():
+    """Themes named in $HERDR_PLUGIN_CONFIG_DIR/config.json, e.g. {"themes": ["bishoujo"]}.
+
+    "default" is the built-in THEMES; any other name is read from themes/<name>.json in the
+    same dir as {"left": [...], "right": [...]}. No config means default. A broken config or
+    theme is reported on stderr (the plugin log) and skipped rather than stopping naming.
+    """
+    if not CONFIG_DIR:
+        return THEMES
+    try:
+        with open(os.path.join(CONFIG_DIR, "config.json"), encoding="utf-8") as f:
+            names = json.load(f)["themes"]
+        if not isinstance(names, list) or any(
+            not isinstance(name, str) or not re.fullmatch(r"[a-zA-Z0-9_-]+", name)
+            for name in names
+        ):
+            raise ValueError("themes must be a list of names using letters, digits, '_' or '-'")
+    except FileNotFoundError:
+        return THEMES
+    except Exception as e:
+        print(f"config.json: {e!r}; using default", file=sys.stderr)
+        return THEMES
+    themes = []
+    for name in names:
+        if name == "default":
+            themes += THEMES
+            continue
+        try:
+            with open(os.path.join(CONFIG_DIR, "themes", f"{name}.json"), encoding="utf-8") as f:
+                theme = json.load(f)
+            left, right = theme["left"], theme["right"]
+            if any(not isinstance(words, list) or any(not isinstance(word, str) for word in words)
+                   for words in (left, right)):
+                raise ValueError("left and right must be lists of strings")
+            themes.append((left, right))
+        except Exception as e:
+            print(f"theme {name}: {e!r}; skipped", file=sys.stderr)
+    return themes or THEMES
 
 
 def herdr(*args):
@@ -76,11 +116,13 @@ def claim(pane, name):
 
 
 def mint(pane):
+    themes = load_themes()
     for _ in range(3):
         used = {a.get("name") for a in herdr("agent", "list")[0].get("agents", [])}
         used |= {p.get("label") for p in herdr("pane", "list")[0].get("panes", [])}
-        pool = [n for left, right in THEMES for a in left for b in right
-                if (n := f"{a}-{b}") not in used]
+        # User themes can hold words herdr would refuse; such a name could never be claimed.
+        pool = [n for left, right in themes for a in left for b in right
+                if (n := f"{a}-{b}") not in used and AGENT_NAME_RE.fullmatch(n)]
         if not pool:
             return ""
         candidate = random.choice(pool)
