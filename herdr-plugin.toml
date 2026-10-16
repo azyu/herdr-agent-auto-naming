@@ -18,10 +18,9 @@ command = ["py", "-3", "auto_name.py"]
 # `/clear` and `/new` replace the agent session in place. Herdr clears the agent name
 # for it but reports no detection, so the pane keeps its label while the agent shows as
 # the bare runtime again. No event marks the replacement; a status change is the first
-# one that follows it, and name_pane rebinds the label from there. Measured on herdr
-# 0.9.1: codex and omp recover on the next prompt, Claude Code on its next turn that
-# uses a tool — herdr reads its status off the screen and a text-only turn never
-# registers as working, so the event can be a while coming.
+# one that follows it, and name_pane rebinds the label from there. codex and omp recover
+# on the next prompt (herdr 0.9.1). Claude Code usually recovers within seconds of the
+# command, otherwise on its next turn (herdr 0.9.5, Claude Code 2.1.301).
 [[events]]
 on = "pane.agent_status_changed"
 platforms = ["linux", "macos"]
