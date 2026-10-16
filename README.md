@@ -85,14 +85,15 @@ still there to rebind from. Measured on Herdr 0.9.1 for codex and omp, and on He
 | --- | --- | --- |
 | codex `/new` | On the first prompt after it, when the new session is reported. | The plugin, on that same turn. |
 | omp `/new` | Immediately. | The plugin, within a second. |
-| Claude Code `/clear`, `/new` | Immediately. | The plugin, on the pane's next status change — usually within a few seconds of the command, otherwise on the next turn. |
+| Claude Code `/clear`, `/new` | Immediately. | The plugin, on the pane's next status change — usually within a few seconds of the command, otherwise on the next turn (see below for older Claude Code). |
 
 In 4 of 5 runs a status change followed the command itself and the name was back
 within three seconds. In the other the pane sat at `idle` with no name for the nine
-seconds it was left alone, and came back on the next turn. Any turn does it now — a
-text-only turn registered as `working` (50 of 99 polls). On Herdr 0.9.1 it did not
-(0 of 120 polls), so a cleared pane stayed on `claude` until the agent read a file or
-ran a command. Herdr's Claude rules for `working` are the same in both versions, so
+seconds it was left alone, and came back on the next turn. With Claude Code 2.1.301
+any turn does it — a text-only turn registered as `working` (50 of 99 polls). In the
+earlier runs on Herdr 0.9.1 it did not (0 of 120 polls), so a cleared pane stayed on
+`claude` until the agent read a file or ran a command; an older Claude Code may still
+behave that way. Herdr's Claude rules for `working` are the same in both versions, so
 the likely cause is a change in Claude Code's own screen output. `name-all` closes the
 remaining gap now; use `name-all-windows` on Windows:
 
@@ -188,7 +189,8 @@ Save configuration and theme files as UTF-8.
 | One pane never gets named | Its label is probably not a legal agent name. `herdr pane get <pane>` — a label like `Reviewer` is honoured, not overwritten. Clear it with `herdr pane rename <pane> --clear` to hand the pane back. |
 | Names look shuffled after a restart | The pane label decides. If a pane's label and agent name disagree, the label wins on the next detection. |
 | Two names race on one pane | Something else is also minting. A per-runtime `SessionStart` hook that assigns Herdr names will fight this plugin; leave one of the two doing the naming. |
-| A Claude Code pane shows `claude` again | `/clear` or `/new` was run there. It comes back on the pane's next status change — usually within seconds, at the latest on its next turn — or right away with `name-all` (`name-all-windows` on Windows). |
+| A Claude Code pane shows `claude` again | `/clear` or `/new` was run there. It comes back on the pane's next status change — on Claude Code 2.1.301 usually within seconds, at the latest on its next turn — or right away with `name-all` (`name-all-windows` on Windows). |
+| A Claude Code pane sits on `idle` while it answers | Seen with older Claude Code versions: Herdr reads Claude Code's status from the screen, and a text-only turn did not look like work. It catches up on the next turn that uses a tool, so a cleared pane can stay on `claude` until then. It did not happen with Claude Code 2.1.301 in my runs. |
 | Nothing at all happens | `herdr plugin list` — a linked plugin can be disabled. Then `herdr plugin log list --plugin azyu.agent-auto-naming` for the last runs and their stderr. |
 
 ## Safety

@@ -84,13 +84,14 @@ Herdr 0.9.1에서, Claude Code는 Herdr 0.9.5와 Claude Code 2.1.301에서 측�
 | --- | --- | --- |
 | codex `/new` | 직후 첫 프롬프트에서 새 세션이 보고될 때 | 플러그인이 같은 턴에 복구 |
 | omp `/new` | 즉시 | 플러그인이 1초 이내에 복구 |
-| Claude Code `/clear`, `/new` | 즉시 | 플러그인이 다음 상태 변화에 복구 — 대개 명령 후 몇 초 안, 늦어도 다음 턴 |
+| Claude Code `/clear`, `/new` | 즉시 | 플러그인이 다음 상태 변화에 복구 — 대개 명령 후 몇 초 안, 늦어도 다음 턴(예전 Claude Code는 아래 참고) |
 
 5회 중 4회는 명령 직후 상태 변화가 이어져 3초 안에 이름이 돌아왔습니다. 나머지 1회는
-그대로 둔 9초 동안 이름 없이 `idle`에 머물렀고 다음 턴에서 돌아왔습니다. 이제는 어떤
-턴이든 복구 계기가 됩니다. 텍스트만 출력하는 턴도 `working`으로 잡혔습니다(99회 폴링
-중 50회). Herdr 0.9.1에서는 잡히지 않았기 때문에(120회 중 0회) 지운 패널이 에이전트가
-파일을 읽거나 명령을 실행할 때까지 `claude`로 남았습니다. 두 버전의 Claude `working`
+그대로 둔 9초 동안 이름 없이 `idle`에 머물렀고 다음 턴에서 돌아왔습니다. Claude Code
+2.1.301에서는 어떤 턴이든 복구 계기가 됩니다. 텍스트만 출력하는 턴도 `working`으로
+잡혔습니다(99회 폴링 중 50회). 앞서 Herdr 0.9.1에서 측정했을 때는 잡히지 않았기
+때문에(120회 중 0회) 지운 패널이 에이전트가 파일을 읽거나 명령을 실행할 때까지
+`claude`로 남았습니다. 예전 Claude Code에서는 여전히 그럴 수 있습니다. 두 버전의 Claude `working`
 감지 규칙은 같으므로, Claude Code 자체의 화면 출력이 바뀐 것이 원인일 가능성이
 큽니다. 남은 공백은 `name-all`로 바로 메울 수 있고, Windows에서는 `name-all-windows`를
 사용하세요.
@@ -185,7 +186,8 @@ echo '{"themes": ["mine"]}' > config.json
 | 특정 패널에 계속 이름이 붙지 않음 | label이 에이전트 이름 규칙에 맞지 않을 수 있습니다. `herdr pane get <pane>`으로 확인하세요. `Reviewer` 같은 label은 덮어쓰지 않습니다. 자동으로 이름을 붙이려면 `herdr pane rename <pane> --clear`로 label을 지우세요. |
 | 재시작 후 이름이 바뀐 것처럼 보임 | pane label이 기준입니다. label과 에이전트 이름이 다르면 다음에 감지될 때 label을 따릅니다. |
 | 한 패널에서 두 이름이 경합함 | 다른 곳에서도 이름을 붙이고 있다는 뜻입니다. Herdr 이름을 배정하는 런타임별 `SessionStart` 훅은 이 플러그인과 충돌합니다. 둘 중 하나만 이름을 붙이도록 설정하세요. |
-| Claude Code 패널이 다시 `claude`로 보임 | 그 패널에서 `/clear` 또는 `/new`를 실행한 경우입니다. 다음 상태 변화에 돌아오며 대개 몇 초, 늦어도 다음 턴입니다. 즉시 복구하려면 `name-all`을 실행하세요(`name-all-windows`는 Windows). |
+| Claude Code 패널이 다시 `claude`로 보임 | 그 패널에서 `/clear` 또는 `/new`를 실행한 경우입니다. 다음 상태 변화에 돌아오며 Claude Code 2.1.301에서는 대개 몇 초, 늦어도 다음 턴입니다. 즉시 복구하려면 `name-all`을 실행하세요(`name-all-windows`는 Windows). |
+| Claude Code 패널이 답변 중인데 `idle`로 보임 | 예전 Claude Code에서 나타납니다. Herdr는 Claude Code의 상태를 화면에서 읽는데, 텍스트만 출력하는 턴이 작업으로 보이지 않았습니다. 도구를 쓰는 다음 턴에서 따라잡으므로, `/clear`한 패널이 그때까지 `claude`로 남을 수 있습니다. Claude Code 2.1.301에서는 제 측정에서 나타나지 않았습니다. |
 | 아무 일도 일어나지 않음 | `herdr plugin list`로 플러그인이 비활성화됐는지 확인하세요. 그다음 `herdr plugin log list --plugin azyu.agent-auto-naming`에서 최근 실행 기록과 stderr를 확인하세요. |
 
 ## 안전성
