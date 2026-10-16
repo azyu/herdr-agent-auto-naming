@@ -78,22 +78,24 @@ process. Herdr treats a replaced session as a new agent and clears the name, so 
 sidebar falls back to the bare runtime — `claude` — while the pane label survives.
 Herdr reports no detection for it, which is what `pane.agent_status_changed` is
 subscribed for: it is the first event that follows the replacement, and the label is
-still there to rebind from. Measured on Herdr 0.9.1:
+still there to rebind from. Measured on Herdr 0.9.1 for codex and omp, and on Herdr
+0.9.5 with Claude Code 2.1.301 for Claude Code:
 
 | Runtime | Name cleared | Recovered by |
 | --- | --- | --- |
 | codex `/new` | On the first prompt after it, when the new session is reported. | The plugin, on that same turn. |
 | omp `/new` | Immediately. | The plugin, within a second. |
-| Claude Code `/clear`, `/new` | Immediately. | The plugin, on the pane's next status change — in practice its next turn that uses a tool. |
+| Claude Code `/clear`, `/new` | Immediately. | The plugin, on the pane's next status change — usually within a few seconds of the command, otherwise on the next turn (see below for older Claude Code). |
 
-Claude Code is the slow one because Herdr reads its status off the screen. A turn that
-only prints text never registered as `working` in my runs — not a 13-second one, not
-an 800-line one — so the status event the plugin waits for does not arrive until the
-agent reads a file or runs a command. Until then the pane still says `claude`. This is
-not specific to `/clear` — an untouched pane behaves the same way — and it is not the
-pane's statusline crowding the detection region either: with mine disabled, three
-text-only turns still never registered (0 of 120 polls), while a tool-using turn in
-the same pane did (6 of 30). `name-all` fixes it now; use `name-all-windows` on Windows:
+In 4 of 5 runs a status change followed the command itself and the name was back
+within three seconds. In the other the pane sat at `idle` with no name for the nine
+seconds it was left alone, and came back on the next turn. With Claude Code 2.1.301
+any turn does it — a text-only turn registered as `working` (50 of 99 polls). In the
+earlier runs on Herdr 0.9.1 it did not (0 of 120 polls), so a cleared pane stayed on
+`claude` until the agent read a file or ran a command; an older Claude Code may still
+behave that way. Herdr's Claude rules for `working` are the same in both versions, so
+the likely cause is a change in Claude Code's own screen output. `name-all` closes the
+remaining gap now; use `name-all-windows` on Windows:
 
 ```sh
 # macOS/Linux
@@ -187,8 +189,8 @@ Save configuration and theme files as UTF-8.
 | One pane never gets named | Its label is probably not a legal agent name. `herdr pane get <pane>` — a label like `Reviewer` is honoured, not overwritten. Clear it with `herdr pane rename <pane> --clear` to hand the pane back. |
 | Names look shuffled after a restart | The pane label decides. If a pane's label and agent name disagree, the label wins on the next detection. |
 | Two names race on one pane | Something else is also minting. A per-runtime `SessionStart` hook that assigns Herdr names will fight this plugin; leave one of the two doing the naming. |
-| A Claude Code pane shows `claude` again | `/clear` or `/new` was run there. It comes back on the pane's next tool-using turn, or right away with `name-all` (`name-all-windows` on Windows). |
-| A Claude Code pane sits on `idle` while it answers | Herdr reads Claude Code's status from the screen, and a text-only turn does not look like work. It catches up on the next turn that uses a tool. Not a naming problem, but it is why a cleared pane can stay on `claude` for a while. |
+| A Claude Code pane shows `claude` again | `/clear` or `/new` was run there. It comes back on the pane's next status change — on Claude Code 2.1.301 usually within seconds, at the latest on its next turn — or right away with `name-all` (`name-all-windows` on Windows). |
+| A Claude Code pane sits on `idle` while it answers | Seen with older Claude Code versions: Herdr reads Claude Code's status from the screen, and a text-only turn did not look like work. It catches up on the next turn that uses a tool, so a cleared pane can stay on `claude` until then. It did not happen with Claude Code 2.1.301 in my runs. |
 | Nothing at all happens | `herdr plugin list` — a linked plugin can be disabled. Then `herdr plugin log list --plugin azyu.agent-auto-naming` for the last runs and their stderr. |
 
 ## Safety
